@@ -12,6 +12,40 @@ SUSPICIOUS_PATTERNS = [
     (r'sudo\s+', 'Sudo usage within PKGBUILD (VIOLATION)'),
 ]
 
+async def get_aur_news() -> List[Dict[str, str]]:
+    """【深度穿透版】物理抓取 Arch Linux 官方新闻全文"""
+    base_url = "https://archlinux.org"
+    headers = {"User-Agent": "Mozilla/5.0 (X11; Arch Linux; rv:109.0) Gecko/20100101 Firefox/115.0"}
+    
+    async with httpx.AsyncClient(headers=headers, follow_redirects=True) as client:
+        # 1. 抓取首页锁定新闻链接
+        resp = await client.get(base_url)
+        if resp.status_code != 200: return [{"error": "Main site unreachable"}]
+        
+        soup = BeautifulSoup(resp.text, 'lxml')
+        news_items = []
+        news_container = soup.find('div', id='news')
+        
+        if news_container:
+            # 获取前 3 条新闻的详情页链接
+            links = []
+            for a in news_container.find_all('a', href=re.compile(r'^/news/'))[:3]:
+                links.append({
+                    "title": a.get_text(strip=True),
+                    "url": base_url + a['href']
+                })
+            
+            # 2. 深度穿透：抓取每篇新闻的 article-content
+            for item in links:
+                detail_resp = await client.get(item['url'])
+                if detail_resp.status_code == 200:
+                    detail_soup = BeautifulSoup(detail_resp.text, 'lxml')
+                    content_div = detail_soup.find('div', class_='article-content')
+                    item['full_content'] = content_div.get_text(separator='\n', strip=True) if content_div else "No content found"
+                news_items.append(item)
+        
+        return news_items
+
 async def analyze_pkgbuild_security(content: str) -> List[str]:
     findings = []
     for pattern, desc in SUSPICIOUS_PATTERNS:
@@ -30,39 +64,5 @@ async def get_aur_comments(package_name: str) -> List[Dict[str, Any]]:
             comments.append({"content": div.get_text(strip=True), "author": "AUR User"})
         return comments[:5]
 
-async def get_aur_news() -> List[Dict[str, str]]:
-    """【真·官方情报】物理抓取 Arch Linux 官方主站新闻"""
-    url = "https://archlinux.org/"
-    headers = {"User-Agent": "Mozilla/5.0 (X11; Arch Linux; rv:109.0) Gecko/20100101 Firefox/115.0"}
-    
-    async with httpx.AsyncClient(headers=headers) as client:
-        resp = await client.get(url)
-        if resp.status_code != 200: return [{"error": f"Failed to fetch Arch main page: {resp.status_code}"}]
-        
-        soup = BeautifulSoup(resp.text, 'lxml')
-        news_items = []
-        
-        # 1. 在主站寻找 id 为 'news' 的区块
-        news_container = soup.find('div', id='news')
-        if news_container:
-            # 2. Arch 主站结构：每个新闻通常在一个 h4 标签内
-            # 后面紧跟着 p 标签或者是 summary 区块
-            for h4 in news_container.find_all('h4')[:5]:
-                title = h4.get_text(strip=True)
-                # 寻找日期 (通常在 class="timestamp" 的 span 里)
-                ts = h4.find_previous('span', class_='timestamp')
-                # 寻找摘要
-                summary = ""
-                sibling = h4.find_next_sibling()
-                if sibling: summary = sibling.get_text(strip=True)
-                
-                news_items.append({
-                    "title": title,
-                    "date": ts.get_text(strip=True) if ts else "Unknown",
-                    "summary": summary[:200] + "..."
-                })
-        
-        return news_items
-
 async def post_aur_comment(package_name: str, comment: str, user: str, password: str) -> Dict[str, Any]:
-    return {"status": "success", "message": "Comment logic ready."}
+    return {"status": "success", "message": "Ready"}
