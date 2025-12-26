@@ -1,5 +1,5 @@
 from mcp.types import Tool
-from .omega_aur import analyze_pkgbuild_security, get_aur_comments, get_aur_news, generate_aur_comment_link
+from .omega_aur import analyze_pkgbuild_security, get_aur_comments, get_arch_news_portal, generate_aur_comment_link
 import json
 
 OMEGA_TOOLS = [
@@ -14,17 +14,13 @@ OMEGA_TOOLS = [
         inputSchema={ "type": "object", "properties": { "package_name": {"type": "string"} }, "required": ["package_name"] }
     ),
     Tool(
-        name="get_aur_news",
-        description="Fetch the latest news and announcements from Arch Linux main site.",
+        name="get_arch_news_portal",
+        description="Get a direct link to the latest official Arch Linux news and announcements.",
         inputSchema={ "type": "object", "properties": {} }
     ),
     Tool(
         name="get_aur_comment_portal",
-        description="Generate a direct link to the AUR package comment section for manual posting.",
-        inputSchema={
-            "type": "object",
-            "properties": { "package_name": {"type": "string"} },
-            "required": ["package_name"]
-        }
+        description="Generate a direct link to the AUR package comment section.",
+        inputSchema={ "type": "object", "properties": { "package_name": {"type": "string"} }, "required": ["package_name"] }
     )
 ]
