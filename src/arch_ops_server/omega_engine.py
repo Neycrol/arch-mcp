@@ -1,6 +1,6 @@
 from .server import server as base_server
 from .tool_metadata_omega import OMEGA_TOOLS
-from .omega_aur import analyze_pkgbuild_security, get_aur_comments, get_aur_news, submit_aur_request
+from .omega_aur import analyze_pkgbuild_security, get_aur_comments, get_aur_news, post_aur_comment, edit_aur_comment
 from mcp.types import TextContent
 import json
 import os
@@ -28,15 +28,13 @@ async def call_tool_omega(name, arguments):
     elif name == "get_aur_news":
         result = await get_aur_news()
         return [TextContent(type="text", text=json.dumps(result, indent=2))]
-    elif name == "submit_aur_package_request":
-        if not user or not pwd:
-            return [TextContent(type="text", text="Error: AUR_USER or AUR_PASSWORD not set.")]
-        result = await submit_aur_request(
-            arguments["package_name"], 
-            arguments["request_type"], 
-            arguments["comments"],
-            user, pwd
-        )
+    elif name == "post_comment_to_aur":
+        if not user or not pwd: return [TextContent(type="text", text="Error: AUR_USER/AUR_PASSWORD missing.")]
+        result = await post_aur_comment(arguments["package_name"], arguments["comment"], user, pwd)
+        return [TextContent(type="text", text=json.dumps(result, indent=2))]
+    elif name == "edit_aur_comment":
+        if not user or not pwd: return [TextContent(type="text", text="Error: AUR_USER/AUR_PASSWORD missing.")]
+        result = await edit_aur_comment(arguments["package_name"], arguments["comment_id"], arguments["new_comment"], user, pwd)
         return [TextContent(type="text", text=json.dumps(result, indent=2))]
     
     return await original_call_tool(name, arguments)
