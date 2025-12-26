@@ -1,6 +1,6 @@
 from .server import server as base_server
 from .tool_metadata_omega import OMEGA_TOOLS
-from .omega_aur import analyze_pkgbuild_security, get_aur_comments, post_aur_comment
+from .omega_aur import analyze_pkgbuild_security, get_aur_comments, post_aur_comment, get_aur_news
 from mcp.types import TextContent
 import json
 import os
@@ -22,12 +22,14 @@ async def call_tool_omega(name, arguments):
     elif name == "get_aur_comments":
         result = await get_aur_comments(arguments["package_name"])
         return [TextContent(type="text", text=json.dumps(result, indent=2))]
+    elif name == "get_aur_news":
+        result = await get_aur_news()
+        return [TextContent(type="text", text=json.dumps(result, indent=2))]
     elif name == "post_comment_to_aur":
-        # 从环境变量读取账户信息
         user = os.getenv("AUR_USER")
         pwd = os.getenv("AUR_PASSWORD")
         if not user or not pwd:
-            return [TextContent(type="text", text="Error: AUR_USER or AUR_PASSWORD not set in MCP environment.")]
+            return [TextContent(type="text", text="Error: AUR_USER or AUR_PASSWORD not set.")]
         result = await post_aur_comment(arguments["package_name"], arguments["comment"], user, pwd)
         return [TextContent(type="text", text=json.dumps(result, indent=2))]
     
