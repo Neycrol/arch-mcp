@@ -13,12 +13,11 @@ SUSPICIOUS_PATTERNS = [
 ]
 
 async def get_aur_news() -> List[Dict[str, str]]:
-    """【深度穿透版】物理抓取 Arch Linux 官方新闻全文"""
+    """【精密深度穿透版】物理抓取 Arch Linux 官方新闻全文"""
     base_url = "https://archlinux.org"
     headers = {"User-Agent": "Mozilla/5.0 (X11; Arch Linux; rv:109.0) Gecko/20100101 Firefox/115.0"}
     
     async with httpx.AsyncClient(headers=headers, follow_redirects=True) as client:
-        # 1. 抓取首页锁定新闻链接
         resp = await client.get(base_url)
         if resp.status_code != 200: return [{"error": "Main site unreachable"}]
         
@@ -27,21 +26,25 @@ async def get_aur_news() -> List[Dict[str, str]]:
         news_container = soup.find('div', id='news')
         
         if news_container:
-            # 获取前 3 条新闻的详情页链接
+            # 1. 物理定位文章链接 (排除大标题)
             links = []
-            for a in news_container.find_all('a', href=re.compile(r'^/news/'))[:3]:
-                links.append({
-                    "title": a.get_text(strip=True),
-                    "url": base_url + a['href']
-                })
+            for a in news_container.find_all('a', href=re.compile(r'^/news/')):
+                href = a['href']
+                title = a.get_text(strip=True)
+                # 过滤逻辑：排除根路径 /news/ 和 重复标题
+                if href != "/news/" and len(title) > 5:
+                    links.append({"title": title, "url": base_url + href})
             
-            # 2. 深度穿透：抓取每篇新闻的 article-content
-            for item in links:
-                detail_resp = await client.get(item['url'])
-                if detail_resp.status_code == 200:
-                    detail_soup = BeautifulSoup(detail_resp.text, 'lxml')
-                    content_div = detail_soup.find('div', class_='article-content')
-                    item['full_content'] = content_div.get_text(separator='\n', strip=True) if content_div else "No content found"
+            # 2. 深度穿透：获取全文 (仅前 3 条以防超时)
+            for item in links[:3]:
+                try:
+                    detail_resp = await client.get(item['url'])
+                    if detail_resp.status_code == 200:
+                        detail_soup = BeautifulSoup(detail_resp.text, 'lxml')
+                        content_div = detail_soup.find('div', class_='article-content')
+                        item['full_content'] = content_div.get_text(separator='\n', strip=True) if content_div else "No content"
+                except Exception:
+                    item['full_content'] = "Fetch failed"
                 news_items.append(item)
         
         return news_items
