@@ -1,5 +1,5 @@
 from mcp.types import Tool
-from .omega_aur import analyze_pkgbuild_security, get_aur_comments, post_aur_comment, get_aur_news
+from .omega_aur import analyze_pkgbuild_security, get_aur_comments, get_aur_news, submit_aur_request
 import json
 
 OMEGA_TOOLS = [
@@ -23,19 +23,20 @@ OMEGA_TOOLS = [
     ),
     Tool(
         name="get_aur_news",
-        description="Fetch the latest news and announcements from AUR homepage.",
+        description="Fetch the latest news and announcements from Arch Linux main site.",
         inputSchema={ "type": "object", "properties": {} }
     ),
     Tool(
-        name="post_comment_to_aur",
-        description="Post a comment to an AUR package page (Requires AUR credentials).",
+        name="submit_aur_package_request",
+        description="Submit a formal request (orphan/deletion/merge) for an AUR package. REQUIRES CREDENTIALS.",
         inputSchema={
             "type": "object",
             "properties": {
                 "package_name": {"type": "string"},
-                "comment": {"type": "string"}
+                "request_type": {"type": "string", "enum": ["orphan", "deletion", "merge"]},
+                "comments": {"type": "string", "description": "Reason for the request"}
             },
-            "required": ["package_name", "comment"]
+            "required": ["package_name", "request_type", "comments"]
         }
     )
 ]
