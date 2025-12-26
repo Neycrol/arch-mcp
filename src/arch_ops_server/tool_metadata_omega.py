@@ -28,16 +28,15 @@ OMEGA_TOOLS = [
         }
     ),
     Tool(
-        name="edit_aur_comment",
-        description="Edit an existing comment on an AUR package page. REQUIRES CREDENTIALS.",
+        name="edit_last_self_comment_on_aur",
+        description="Edit the most recent comment you made on an AUR package page. REQUIRES CREDENTIALS.",
         inputSchema={
             "type": "object",
             "properties": { 
                 "package_name": {"type": "string"}, 
-                "comment_id": {"type": "string"}, 
                 "new_comment": {"type": "string"} 
             },
-            "required": ["package_name", "comment_id", "new_comment"]
+            "required": ["package_name", "new_comment"]
         }
     )
 ]

@@ -5,15 +5,12 @@ from mcp.types import TextContent
 import json
 import os
 
-# 劫持工具列表
 original_list_tools = base_server.list_tools()
 @base_server.list_tools()
 async def list_tools_omega():
     tools = await original_list_tools()
     return tools + OMEGA_TOOLS
 
-# 劫持工具调用
-original_call_tool = base_server.call_tool()
 @base_server.call_tool()
 async def call_tool_omega(name, arguments):
     user = os.getenv("AUR_USER")
@@ -32,9 +29,9 @@ async def call_tool_omega(name, arguments):
         if not user or not pwd: return [TextContent(type="text", text="Error: AUR_USER/AUR_PASSWORD missing.")]
         result = await post_aur_comment(arguments["package_name"], arguments["comment"], user, pwd)
         return [TextContent(type="text", text=json.dumps(result, indent=2))]
-    elif name == "edit_aur_comment":
+    elif name == "edit_last_self_comment_on_aur":
         if not user or not pwd: return [TextContent(type="text", text="Error: AUR_USER/AUR_PASSWORD missing.")]
-        result = await edit_aur_comment(arguments["package_name"], arguments["comment_id"], arguments["new_comment"], user, pwd)
+        result = await edit_aur_comment(arguments["package_name"], arguments["new_comment"], user, pwd)
         return [TextContent(type="text", text=json.dumps(result, indent=2))]
     
     return await original_call_tool(name, arguments)
