@@ -5,65 +5,45 @@ import asyncio
 import logging
 from pathlib import Path
 
-# --- [物理禁言：彻底解决 Stdio 协议污染] ---
-# 必须在所有 import 之前执行！强制将 root logger 重定向到 stderr
-logging.basicConfig(
-    level=logging.WARNING, 
-    stream=sys.stderr,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+# --- [终极物理禁言：开启无缓冲模式，彻底终结 Stdio 死锁] ---
+# 强制使用 stderr 进行所有非协议输出
+logging.basicConfig(level=logging.WARNING, stream=sys.stderr)
+
+# 关键：物理重定义 stdout 为无缓冲模式，确保数据实时流出，不产生堆积
+sys.stdout.reconfigure(line_buffering=True)
 
 # 1. 物理自感知
-current_file = Path(__file__).resolve()
-src_dir = str(current_file.parent.parent)
-if src_dir not in sys.path:
-    sys.path.insert(0, src_dir)
+src_dir = str(Path(__file__).resolve().parent.parent)
+if src_dir not in sys.path: sys.path.insert(0, src_dir)
 
 from mcp.server import Server
 from mcp.types import Tool, TextContent
 from mcp.server.stdio import stdio_server
 
-# 2. 初始化奥米加影子服务器
 server = Server("aur-omega")
 
 @server.list_tools()
 async def list_tools():
     return [
-        Tool(name="get_aur_news", description="Fetch full Arch Linux news reports.", inputSchema={"type":"object"}),
-        Tool(name="audit_pkgbuild", description="Audit PKGBUILD for security.", inputSchema={"type":"object", "properties":{"content":{"type":"string"}}, "required":["content"]}),
-        Tool(name="get_aur_comments", description="Fetch comments for a package.", inputSchema={"type":"object", "properties":{"package_name":{"type":"string"}}, "required":["package_name"]}),
-        Tool(name="get_aur_comment_portal", description="Get manual comment link.", inputSchema={"type":"object", "properties":{"package_name":{"type":"string"}}, "required":["package_name"]}),
-        Tool(name="post_comment_to_aur", description="Post comment to AUR. REQUIRES CREDENTIALS.", inputSchema={"type":"object", "properties":{"package_name":{"type":"string"}, "comment":{"type":"string"}}, "required":["package_name", "comment"]})
+        Tool(name="get_aur_news", description="Fetch short Arch news summaries.", inputSchema={"type":"object"}),
+        Tool(name="audit_pkgbuild", description="Audit security.", inputSchema={"type":"object", "properties":{"content":{"type":"string"}}})
     ]
 
 @server.call_tool()
 async def call_tool(name, args):
     try:
-        # 延迟加载，防止启动时污染
         import arch_ops_server.omega_aur as omega
-        
         if name == "get_aur_news":
+            # 物理限制：每篇新闻截取前 500 字符，彻底解决管道拥塞
             res = await omega.get_aur_news()
+            for r in res:
+                if "report" in r: r["report"] = r["report"][:500] + "... [Trimmied]"
             return [TextContent(type="text", text=json.dumps(res, indent=2))]
         elif name == "audit_pkgbuild":
             res = await omega.analyze_pkgbuild_security(args["content"])
             return [TextContent(type="text", text=json.dumps(res, indent=2))]
-        elif name == "get_aur_comments":
-            res = await omega.get_aur_comments(args["package_name"])
-            return [TextContent(type="text", text=json.dumps(res, indent=2))]
-        elif name == "get_aur_comment_portal":
-            link = omega.generate_aur_comment_link(args["package_name"])
-            return [TextContent(type="text", text=f"Portal: {link}")]
-        elif name == "post_comment_to_aur":
-            u, p = os.getenv("AUR_USER"), os.getenv("AUR_PASSWORD")
-            if not u or not p: return [TextContent(type="text", text="Error: Credentials missing.")]
-            res = await omega.post_aur_comment(args["package_name"], args["comment"], u, p)
-            return [TextContent(type="text", text=json.dumps(res, indent=2))]
-            
     except Exception as e:
-        import traceback
-        return [TextContent(type="text", text=f"OMEGA_ERROR: {str(e)}\n{traceback.format_exc()}")]
-    
+        return [TextContent(type="text", text=f"ERROR: {str(e)}")]
     return [TextContent(type="text", text="Unknown Tool")]
 
 if __name__ == "__main__":
