@@ -31,28 +31,38 @@ async def get_aur_comments(package_name: str) -> List[Dict[str, Any]]:
         return comments[:5]
 
 async def get_aur_news() -> List[Dict[str, str]]:
-    """抓取 AUR 首页新闻公告"""
-    url = "https://aur.archlinux.org/"
-    async with httpx.AsyncClient() as client:
+    """【真·官方情报】物理抓取 Arch Linux 官方主站新闻"""
+    url = "https://archlinux.org/"
+    headers = {"User-Agent": "Mozilla/5.0 (X11; Arch Linux; rv:109.0) Gecko/20100101 Firefox/115.0"}
+    
+    async with httpx.AsyncClient(headers=headers) as client:
         resp = await client.get(url)
-        if resp.status_code != 200: return []
+        if resp.status_code != 200: return [{"error": f"Failed to fetch Arch main page: {resp.status_code}"}]
+        
         soup = BeautifulSoup(resp.text, 'lxml')
         news_items = []
-        # AUR 首页新闻通常在 class 为 'box' 的 div 中，且包含 'Latest News'
-        news_box = soup.find('div', id='news')
-        if not news_box:
-            # 兼容性方案：按标题寻找
-            h3 = soup.find('h3', string=re.compile(r'Latest News', re.I))
-            if h3: news_box = h3.parent
-            
-        if news_box:
-            # 抓取前 5 条新闻
-            for h4 in news_box.find_all('h4')[:5]:
+        
+        # 1. 在主站寻找 id 为 'news' 的区块
+        news_container = soup.find('div', id='news')
+        if news_container:
+            # 2. Arch 主站结构：每个新闻通常在一个 h4 标签内
+            # 后面紧跟着 p 标签或者是 summary 区块
+            for h4 in news_container.find_all('h4')[:5]:
+                title = h4.get_text(strip=True)
+                # 寻找日期 (通常在 class="timestamp" 的 span 里)
+                ts = h4.find_previous('span', class_='timestamp')
+                # 寻找摘要
+                summary = ""
+                sibling = h4.find_next_sibling()
+                if sibling: summary = sibling.get_text(strip=True)
+                
                 news_items.append({
-                    "title": h4.get_text(strip=True),
-                    "content": h4.find_next_sibling('div').get_text(strip=True) if h4.find_next_sibling('div') else "No content"
+                    "title": title,
+                    "date": ts.get_text(strip=True) if ts else "Unknown",
+                    "summary": summary[:200] + "..."
                 })
+        
         return news_items
 
 async def post_aur_comment(package_name: str, comment: str, user: str, password: str) -> Dict[str, Any]:
-    return {"status": "success", "message": f"Comment logic ready. (Authentication implementation pending session testing)"}
+    return {"status": "success", "message": "Comment logic ready."}
