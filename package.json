@@ -1,0 +1,16 @@
+{
+  "name": "@neycrol/arch-mcp-omega",
+  "version": "1.0.0",
+  "description": "Omega Upgrade for Arch Linux MCP",
+  "main": "index.js",
+  "bin": {
+    "arch-mcp-omega": "index.js"
+  },
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {},
+  "engines": {
+    "node": ">=18"
+  }
+}
